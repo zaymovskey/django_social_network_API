@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  sn_db:
+    image: postgres:12
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_PASSWORD: 1002yegreSS
+      POSTGRES_USER: zaymovskey
+      POSTGRES_DB: social_network_db
+  django:
+    container_name: source
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    command:  bash -c "python /usr/source/config/manage.py migrate --noinput &&
+              python /usr/source/source/manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/usr/source/source
+    ports:
+      - 8000:8000
+    depends_on:
+      - sn_db
+volumes:
+  pg_data:
