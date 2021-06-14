@@ -1,10 +1,11 @@
+from django.contrib.contenttypes.models import ContentType
 from django.http import HttpResponse
-
-from .models import CustomUser, Post
-from .serializers import UserSerializer, UsersListSerializer, UserUpdateSerializer, PostsListSerializer, \
-    PostCreateSerializer, PostSerializer
+from rest_framework.response import Response
+from rest_framework import viewsets
+from .models import CustomUser, Post, Like
+from .serializers import UserSerializer, UserUpdateSerializer, PostSerializer
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 
 class UserGetView(generics.RetrieveAPIView):
@@ -16,7 +17,7 @@ class UserGetView(generics.RetrieveAPIView):
 class UsersListView(generics.ListAPIView):
     """Вывод списка всех пользователей"""
     queryset = CustomUser.objects.all()
-    serializer_class = UsersListSerializer
+    serializer_class = UserSerializer
 
 
 class UserUpdateView(generics.UpdateAPIView):
@@ -27,28 +28,34 @@ class UserUpdateView(generics.UpdateAPIView):
         return CustomUser.objects.get(auth_token=self.request.auth)
 
 
-class PostsListView(generics.ListAPIView):
-    """Вывод всех постов пользователя"""
-    queryset = CustomUser.objects.all()
-    serializer_class = PostsListSerializer
-
-    def get_queryset(self):
-        return Post.objects.filter(author__id=self.kwargs['pk'])
-
-
-class PostCreateView(generics.CreateAPIView):
-    """Создание поста"""
-    queryset = Post.objects.all()
-    serializer_class = PostCreateSerializer
-    permission_classes = [IsAuthenticated]
-
-
-class PostDeleteView(generics.RetrieveDestroyAPIView):
+class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = (IsAuthenticatedOrReadOnly,)
 
     def destroy(self, request, *args, **kwargs):
         if CustomUser.objects.get(auth_token=self.request.auth) != CustomUser.objects.get(posts__id=self.kwargs['pk']):
             return HttpResponse('Нет доступа', status=401)
-        return super(PostDeleteView, self).destroy(self, request, *args, **kwargs)
+        super(PostViewSet, self).destroy(self, request, *args, **kwargs)
+        return Response()
+
+    def list(self, request, *args, **kwargs):
+        queryset = Post.objects.filter(author__id=kwargs['pk'])
+        if self.request.auth:
+            user = CustomUser.objects.get(auth_token=self.request.auth)
+            serializer = PostSerializer(queryset, many=True, context={'user': user})
+            return Response(serializer.data)
+
+        serializer = PostSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def like(self, request, *args, **kwargs):
+        user = CustomUser.objects.get(auth_token=self.request.auth)
+        post = Post.objects.get(pk=kwargs['pk'])
+        obj_type = ContentType.objects.get_for_model(post)
+        obj, created = Like.objects.get_or_create(content_type=obj_type, object_id=post.id, user=user)
+        if created:
+            obj.save()
+            return Response(data=True)
+        obj.delete()
+        return Response(data=False)

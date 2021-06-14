@@ -31,6 +31,13 @@ class Like(models.Model):
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey('content_type', 'object_id')
 
+    class Meta:
+        verbose_name = 'Лайк'
+        verbose_name_plural = 'Лайки'
+
+    def __str__(self):
+        return 'Лайк пользователя - {}'.format(self.user.username)
+
 
 class Post(models.Model):
     """Пост"""
@@ -46,4 +53,7 @@ class Post(models.Model):
         verbose_name_plural = 'Посты'
 
     def __str__(self):
-        return self.author.username
+        return 'Пост пользователя - {}'.format(self.author.username)
+
+    def total_likes(self):
+        return self.likes.count()

@@ -2,7 +2,11 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import CustomUser, Post
+from .models import CustomUser, Post, Like
+
+
+class LikeAdmin(admin.ModelAdmin):
+    list_display = ('content_type', 'content_object',)
 
 
 class PostAdmin(admin.ModelAdmin):
@@ -28,3 +32,4 @@ class CustomUserAdmin(UserAdmin):
 
 admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Post, PostAdmin)
+admin.site.register(Like, LikeAdmin)
